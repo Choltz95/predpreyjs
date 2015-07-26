@@ -116,7 +116,7 @@ void run() {
 void keyPressed() {
   switch (key) {
     case 'p':
-      predator = !predator;
+      PREDATOR = !PREDATOR;
       break;
     case 'o':
       MOUSE_OBST = !MOUSE_OBST;
@@ -151,7 +151,7 @@ class Boid {
     loc = location; // Boids start with given location and no vel or acc.
     vel = new PVector();
     acc = new PVector();
-    mass = int(random(5, 10));
+    mass = int(random(5, 10));  
   }
 
   void flock(ArrayList<Boid> boids) {
@@ -166,18 +166,11 @@ class Boid {
     acc.mult(0); // reset boid acceleration each frame
     vel.limit(max_velocity);
 
-    if (loc.x<=0) {
-      loc.x = width;
-    }
-    if (loc.x>width) {
-      loc.x = 0;
-    }
-    if (loc.y<=0) {
-      loc.y = height;
-    }
-    if (loc.y>height) {
-      loc.y = 0;
-    }
+    //wrap edges
+    if (loc.x<=0) { loc.x = width; }
+    if (loc.x>width) { loc.x = 0; }
+    if (loc.y<=0) { loc.y = height; }
+    if (loc.y>height) { loc.y = 0; }
   }
 
   void display() {
@@ -196,75 +189,53 @@ class Boid {
   }
 
   // computer average location or 
-  int compute_com(ArrayList<Boid> boids, int view_rad) {
-
-  }
-
-  void separate(ArrayList<Boid> boids) {
-    // Applies a force in the opposite direction of other boids average position
+  PVector compute_com(ArrayList<Boid> boids, int view_rad, boolean v) {
     float count = 0; // Keep track of how many boids are too close.
-    PVector locSum = new PVector();
+    PVector vec_sum = new PVector();
 
     for (Boid other: boids) {
-      int separation = mass + 20;
+      int separation = mass + view_rad;
       PVector dist = PVector.sub(other.getLoc(), loc); // distance to other boid.
       float d = dist.mag();
 
       if (d != 0 && d<separation) { // If closer than desired, and not self.
-        PVector otherLoc = other.getLoc();
-        locSum.add(otherLoc); // All locs from closeby boids are added.
+        PVector other_vec = new PVector();
+        if(v) { other_vec = other.getVel(); } // if we want to average the velocities vs. locations
+        else { other_vec = other.getLoc(); }
+        vec_sum.add(other_vec); // All locs from closeby boids are added.
         count ++;
       }
     }
-    if (count>0) { // Don't divide by zero.
-      locSum.div(count); // compute center of mass of nearby flock
-      PVector avoidVec = PVector.sub(loc, locSum); // AvoidVec connects loc and average loc.
+    vec_sum.div(count);
+    if(count > 0) {
+      return vec_sum;
+    } else {
+      return null;
+    }
+  }
+
+  void separate (ArrayList<Boid> boids) {
+    PVector com = compute_com(boids, 20, false);
+    if(com != null) {
+      PVector avoidVec = PVector.sub(loc, com);
       avoidVec.limit(max_force*2.5); // Weigh by factor arbitrary factor 2.5.
-      apply_force(avoidVec);
+      apply_force(avoidVec);    
     }
   }
 
   void cohere(ArrayList<Boid> boids) {
-    float count = 0; // Keep track of how many boids are within sight.
-    PVector locSum = new PVector(); // to store locations of boids in sight.
-
-    for (Boid other: boids) {
-      int approachRadius = mass + 60; // radius in which to look for other boids.
-      PVector dist = PVector.sub(other.getLoc(), loc);
-      float d = dist.mag();
-
-      if (d != 0 && d<approachRadius) {
-        PVector otherLoc = other.getLoc();
-        locSum.add(otherLoc);
-        count ++;
-      }
-    }
-    if (count>0) {
-      locSum.div(count);
-      PVector approachVec = PVector.sub(locSum, loc);
+    PVector com = compute_com(boids, 60, false);
+    if(com != null) {
+      PVector approachVec = PVector.sub(com, loc);
       approachVec.limit(max_force);
       apply_force(approachVec);
     }
   }
 
   void align(ArrayList<Boid> boids) {
-    float count = 0; // Keep track of how many boids are in sight.
-    PVector velSum = new PVector(); // To store vels of boids in sight.
-
-    for (Boid other: boids) {
-      int alignRadius = mass + 100;
-      PVector dist = PVector.sub(other.getLoc(), loc);
-      float d = dist.mag();
-
-      if (d != 0 && d<alignRadius) {
-        PVector otherVel = other.getVel();
-        velSum.add(otherVel);
-        count ++;
-      }
-    }
-    if (count>0) {
-      velSum.div(count);
-      PVector alignVec = velSum;
+    PVector com = compute_com(boids, 100, true);
+    if(com != null) {
+      PVector alignVec = PVector.sub(com, loc);
       alignVec.limit(max_force);
       apply_force(alignVec);
     }
@@ -312,45 +283,10 @@ class Predator extends Boid { // Predators are just boids with some extra charac
     ellipse(loc.x, loc.y, mass, mass);
   }
 
-  void update() {
-    // Calculate the next position of the boid.
-    vel.add(acc);
-    loc.add(vel);
-    acc.mult(0);
-    vel.limit(max_velocity);
-
-    if (loc.x<=0) {
-      loc.x = width;
-    }
-    if (loc.x>width) {
-      loc.x = 0;
-    }
-    if (loc.y<=0) {
-      loc.y = height;
-    }
-    if (loc.y>height) {
-      loc.y = 0;
-    }
-  }
-
   void chase(ArrayList<Boid> boids) {
-    float count = 0;
-    PVector locSum = new PVector();
-
-    for (Boid other: boids) {
-      int approachRadius = mass + 260;
-      PVector dist = PVector.sub(other.getLoc(), loc);
-      float d = dist.mag();
-
-      if (d != 0 && d<approachRadius) {
-        PVector otherLoc = other.getLoc();
-        locSum.add(otherLoc);
-        count ++;
-      }
-    }
-    if (count>0) {
-      locSum.div(count);
-      PVector approachVec = PVector.sub(locSum, loc);
+    PVector com = super.compute_com(boids, 260, false);
+    if(com != null) {
+      PVector approachVec = PVector.sub(com, loc);
       approachVec.limit(max_force);
       apply_force(approachVec);
     }
