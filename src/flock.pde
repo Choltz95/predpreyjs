@@ -30,7 +30,7 @@ void setup() {
   PREDATOR = true;
 
   num_boids = 20;
-  num_preds = 1;
+  num_preds = 2;
   obstRad = 60;
 
   size(800, 400);
@@ -146,6 +146,7 @@ class Boid {
   int mass;
   int max_force = 4; // determines how much effect the different forces have on the acceleration. 6
   int max_velocity = 3;//5
+  int[] color = [0,0,0];
 
   Boid(PVector location) {
     loc = location; // Boids start with given location and no vel or acc.
@@ -176,9 +177,9 @@ class Boid {
   void display() {
     update();
     fill(0, 0);
-    stroke(0);
-    //stroke(204, 102, 0);
-    //  represent boids as a vector proportional to velocity
+    //stroke(0);
+    stroke(color[0],color[1],color[2]);
+    // represent boids as a vector proportional to velocity
     line(loc.x, loc.y, loc.x + 3*vel.x, loc.y + 3*vel.y);
   }
 
@@ -217,6 +218,7 @@ class Boid {
   void separate (ArrayList<Boid> boids) {
     PVector com = compute_com(boids, 20, false);
     if(com != null) {
+      color[2]+=2;
       PVector avoidVec = PVector.sub(loc, com);
       avoidVec.limit(max_force*2.5); // Weigh by factor arbitrary factor 2.5.
       apply_force(avoidVec);    
@@ -226,6 +228,7 @@ class Boid {
   void cohere(ArrayList<Boid> boids) {
     PVector com = compute_com(boids, 60, false);
     if(com != null) {
+      color[1]+=2;
       PVector approachVec = PVector.sub(com, loc);
       approachVec.limit(max_force);
       apply_force(approachVec);
@@ -235,6 +238,7 @@ class Boid {
   void align(ArrayList<Boid> boids) {
     PVector com = compute_com(boids, 100, true);
     if(com != null) {
+      color[1]+=2;
       PVector alignVec = PVector.sub(com, loc);
       alignVec.limit(max_force);
       apply_force(alignVec);
@@ -250,6 +254,9 @@ class Boid {
     if (d<=radius) {
       PVector repelVec = PVector.sub(loc, obstacle);
       repelVec.normalize();
+      color[1]=0;
+      color[2]=0;
+      color[0]+=20;
       if (d != 0) { // Don't divide by zero.
         float scale = 1.0/d; // scale force up as distance decreases
         repelVec.normalize();
@@ -257,6 +264,10 @@ class Boid {
       }
       apply_force(repelVec);
     }
+  }
+
+  void colorState() {
+
   }
 
   PVector getLoc() {
